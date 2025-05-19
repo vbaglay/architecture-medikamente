@@ -1,0 +1,87 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+System_Boundary(medikamente, "Система «Медикаменте»") {
+
+  Person(client, "Пациент", "Записывается на приём и просматривает свои данные")
+  Person(reception, "Сотрудник ресепшена", "Регистрирует пациентов и управляет приёмами")
+  Person(cashier, "Кассир", "Принимает оплату")
+  Person(doctor, "Врач", "Работает с назначениями и медкартами")
+  
+  Container(clientPortal, "Портал клиента", "Web", "Запись на приём, просмотр профиля")
+  Container(receptionPortal, "Портал ресепшена", "Web", "Управление регистрацией и приёмами")
+  Container(crm, "CRM", "Web", "Медкарты, назначения (PHI)")
+  Container(paymentGateway, "Платёжный шлюз", "Web", "Платёжные операции (финансовые данные)")
+  Container(notificationService, "Сервис уведомлений", "Worker/API", "Отправка напоминаний (контакты)")
+  Container(labIntegration, "Интеграция с лабораторией", "API", "Приём и передача анализов")
+  Container(authService, "Auth-сервис", "API", "Аутентификация, RBAC, ABAC")
+  Container(apiGateway, "API Gateway", "Reverse Proxy", "Общий вход, проверка токенов и ролей")
+
+  ContainerDb(mainDb, "Основная БД", "PostgreSQL", "PII, PHI, финансы. Тегирование + шифрование")
+  ContainerDb(auditDb, "Аудит БД", "Append-only Store", "Лог доступа и изменений")
+  ContainerDb(labDb, "БД лаборатории", "Внешняя система", "Анализы. Защищённый API")
+
+  ' Users
+  client--> clientPortal
+  reception--> receptionPortal
+  cashier--> paymentGateway
+  doctor--> crm
+  
+  ' Web to Gateway
+  clientPortal--> apiGateway
+  receptionPortal--> apiGateway
+  crm--> apiGateway
+  paymentGateway--> apiGateway
+  notificationService--> apiGateway
+  labIntegration--> apiGateway
+
+  ' Auth
+  apiGateway--> authService : Проверка токена, ролей, атрибутов
+
+  ' Доступ к БД
+  apiGateway--> mainDb
+  crm--> mainDb
+  receptionPortal--> mainDb
+  clientPortal--> mainDb
+  paymentGateway--> mainDb
+  labIntegration--> labDb
+
+  mainDb--> auditDb : Аудит обращений
+  
+  notificationService--> mainDb : Получение контактной информации
+
+note right of mainDb
+- Шифрование PII, PHI, финансовых полей
+- журнал изменений
+- Архивирование PHI через 5 лет, затем — обезличивание.
+end note
+
+note left of apiGateway
+- Все вызовы авторизуются через authService.
+- Используются роли (RBAC) + атрибуты (ABAC) для разграничения доступа.
+- Применяется принцип минимизации данных — по типу запроса и роли.
+- Контроль передачи PHI/PII реализован через политику запроса к данным.
+end note
+
+note right of labIntegration
+- Токенизация ID
+- Маскирование PII
+- Проверка Consent
+end note
+
+note right of paymentGateway
+- Шифрование суммы, токенизация чеков.
+- Ролевой доступ
+- Аудит всех операций в auditDb.
+- Маскирование чеков при выводе.
+end note
+
+note right of crm
+- Все изменения медкарты
+- ABAC/RBAC
+end note
+
+
+}
+
+@enduml

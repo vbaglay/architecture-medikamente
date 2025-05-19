@@ -1,0 +1,114 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+Person(patient, "Пациент", "Предоставляет персональные данные")
+Person(admin,   "Администратор", "Вводит данные в систему")
+
+Component(P1, "P1: Регистрация пациента", "Процесс", "Ввод и проверка данных пациента")
+
+ContainerDb(PatientsDb, "Список пациентов", "БД", "ФИО, дата рождения, телефон, адрес. Тег: PII")
+
+patient --> P1 : Личные данные (тег: PII)
+admin   --> P1 : Ввод данных
+
+PatientsDb --> P1 : Поиск существующей записи (тег: PII, меры: шифрование, RBAC)
+P1 --> PatientsDb : Сохранение профиля (тег: PII, меры: шифрование, аудит, RBAC)
+
+P1 --> patient : Подтверждение регистрации (тег: PII, меры: маскировка в интерфейсе)
+
+@enduml
+
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+Person(patient, "Пациент", "Проходит приём")
+Person(doctor, "Врач", "Проводит осмотр")
+
+Component(P2, "P2: Приём пациента", "Процесс", "Осмотр, внесение данных, назначение обследований")
+
+ContainerDb(MedCardDb, "Медкарта пациента", "БД", "Диагнозы, назначения. Тег: PHI")
+ContainerDb(AnalysisDb, "Результаты анализов", "БД", "Лабораторные данные. Тег: PHI")
+ContainerDb(AppointmentJournal, "Журнал приёма", "БД", "ID пациента, дата, врач. Тег: Транзакционные")
+
+patient --> P2 : Жалобы, симптомы
+doctor --> P2 : Запрос к данным пациента
+
+MedCardDb --> P2 : Чтение медкарты (тег: PHI, меры: шифрование, аудит, RBAC)
+AnalysisDb --> P2 : Просмотр анализов (тег: PHI, меры: шифрование, аудит)
+AppointmentJournal --> P2 : Проверка записи (тег: Транзакционные, меры: аудит)
+
+P2 --> MedCardDb : Обновление диагноза и назначений (тег: PHI, меры: шифрование, аудит, ABAC)
+P2 --> AppointmentJournal : Запись факта приёма (тег: Транзакционные, меры: аудит)
+
+P2 --> patient : Назначения и направления (тег: PHI, меры: маскировка при печати, ограничение доступа)
+
+@enduml
+
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+Person(patient, "Пациент", "Сдаёт биоматериал")
+Person(lab,     "Лаборант", "Вносит результаты")
+
+Component(P3, "P3: Сдача и обработка анализов", "Процесс", "Регистрация и хранение результатов анализов")
+
+ContainerDb(AppointmentJournal, "Журнал приёма", "БД", "Дата, ID пациента, врач. Тег: Транзакционные")
+ContainerDb(LabResultsDb, "Реестр анализов", "БД", "Результаты лабораторных исследований. Тег: PHI")
+
+patient --> P3 : Направление (тег: PHI)
+AppointmentJournal --> P3 : Проверка записи (тег: Транзакционные, меры: аудит)
+lab --> P3 : Ввод результатов (тег: PHI)
+
+P3 --> LabResultsDb : Сохранение результатов (тег: PHI, меры: шифрование, аудит, RBAC)
+LabResultsDb --> P3 : Чтение истории (тег: PHI, меры: шифрование, аудит)
+
+P3 --> patient : Выдача результата (тег: PHI, меры: маскировка, ограничение доступа)
+
+@enduml
+
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+Person(patient, "Пациент", "Оплачивает услугу")
+Person(cashier, "Кассир", "Проводит платёж")
+
+Component(P4, "P4: Оплата услуги", "Процесс", "Фиксация платежа и выдача чека")
+
+ContainerDb(PaymentsDb, "Платежи и чеки", "БД", "Сумма, ID чека, способ оплаты. Тег: Финансовые")
+
+patient --> P4 : Подтверждение оплаты
+cashier --> P4 : Проведение платежа (тег: Финансовые)
+
+P4 --> PaymentsDb : Запись транзакции (тег: Финансовые, меры: шифрование, токенизация ID, аудит)
+PaymentsDb --> P4 : Получение данных чека (тег: Финансовые, меры: шифрование, RBAC)
+
+P4 --> patient : Фискальный чек (тег: Финансовые, меры: маскировка части реквизитов)
+
+@enduml
+
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+Person(analyst, "Аналитик", "Строит отчёты, обучает модели")
+
+Component(P5, "P5: Подготовка аналитических данных", "Процесс", "Обработка данных для BI, ML, AI")
+
+ContainerDb(PatientsDb, "Список пациентов", "БД", "ФИО, контакты, контракты. Тег: PII")
+ContainerDb(MedCardDb, "Медкарта пациента", "БД", "Диагнозы, назначения. Тег: PHI")
+ContainerDb(AnalysisDb, "Реестр анализов", "БД", "Лабораторные результаты. Тег: PHI")
+ContainerDb(PaymentsDb, "Платежи и чеки", "БД", "Сумма, услуга, чек. Тег: Финансовые")
+
+ContainerDb(DataLake, "Озеро данных", "Хранилище", "Очищенные и обезличенные данные для анализа. Тег: Аналитика")
+
+PatientsDb --> P5 : ПДн клиентов (тег: PII, меры: маскировка, фильтрация полей)
+MedCardDb --> P5 : Медкарты (тег: PHI, меры: обезличивание, агрегирование)
+AnalysisDb --> P5 : Анализы (тег: PHI, меры: обезличивание)
+PaymentsDb --> P5 : Финансовые данные (тег: Финансовые, меры: маскировка ID, агрегирование)
+
+P5 --> DataLake : Наборы данных (тег: Аналитика, меры: удаление PII/PHI, контроль доступа)
+DataLake --> analyst : Агрегированные обезличенные данные (тег: Аналитика, меры: только чтение, логирование)
+
+@enduml
+
+
+
